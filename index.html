@@ -1,0 +1,931 @@
+<title>수업진도표</title>
+<style>
+  :root {
+    --bg: #edece4;
+    --surface: #ffffff;
+    --surface-alt: #f5f4ee;
+    --ink: #23261f;
+    --ink-soft: #63685b;
+    --line: #d9d6c8;
+    --accent: #3c6e57;
+    --accent-strong: #2b5343;
+    --accent-soft: #dce8df;
+    --danger: #a8432e;
+    --danger-soft: #f1dfd8;
+    --radius: 10px;
+    --font-ui: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", sans-serif;
+    --font-mono: ui-monospace, "SF Mono", "Cascadia Mono", "Roboto Mono", "Consolas", monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1a1c16;
+      --surface: #22251d;
+      --surface-alt: #262920;
+      --ink: #ece9dd;
+      --ink-soft: #a7ab9b;
+      --line: #3a3d31;
+      --accent: #74ac8e;
+      --accent-strong: #8fc0a5;
+      --accent-soft: #2b3b31;
+      --danger: #de8770;
+      --danger-soft: #3a241f;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #1a1c16;
+    --surface: #22251d;
+    --surface-alt: #262920;
+    --ink: #ece9dd;
+    --ink-soft: #a7ab9b;
+    --line: #3a3d31;
+    --accent: #74ac8e;
+    --accent-strong: #8fc0a5;
+    --accent-soft: #2b3b31;
+    --danger: #de8770;
+    --danger-soft: #3a241f;
+  }
+  :root[data-theme="light"] {
+    --bg: #edece4;
+    --surface: #ffffff;
+    --surface-alt: #f5f4ee;
+    --ink: #23261f;
+    --ink-soft: #63685b;
+    --line: #d9d6c8;
+    --accent: #3c6e57;
+    --accent-strong: #2b5343;
+    --accent-soft: #dce8df;
+    --danger: #a8432e;
+    --danger-soft: #f1dfd8;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    font-family: var(--font-ui);
+    background: var(--bg);
+    color: var(--ink);
+    margin: 0;
+    padding: 40px 20px 80px;
+    line-height: 1.5;
+  }
+
+  .page {
+    max-width: 1080px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  /* ---- Header ---- */
+  .header-card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 28px 32px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+
+  .eyebrow {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--accent);
+    font-weight: 600;
+  }
+
+  .subject-input {
+    font-family: var(--font-ui);
+    font-weight: 700;
+    font-size: 30px;
+    letter-spacing: -0.01em;
+    text-wrap: balance;
+    color: var(--ink);
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    padding: 2px 0;
+    width: 100%;
+  }
+  .subject-input:hover { border-bottom-color: var(--line); }
+  .subject-input:focus-visible {
+    outline: none;
+    border-bottom-color: var(--accent);
+  }
+
+  .meta-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 16px 24px;
+  }
+
+  .meta-field { display: flex; flex-direction: column; gap: 4px; }
+
+  .meta-field label {
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    font-family: var(--font-mono);
+  }
+
+  .meta-field input {
+    font-family: var(--font-ui);
+    font-size: 14.5px;
+    color: var(--ink);
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid var(--line);
+    padding: 4px 2px;
+  }
+  .meta-field input:focus-visible {
+    outline: none;
+    border-bottom: 1.5px solid var(--accent);
+  }
+
+  /* ---- Progress strip ---- */
+  .progress-card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 20px 32px;
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    flex-wrap: wrap;
+  }
+
+  .progress-stat {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 92px;
+  }
+  .progress-stat .num {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    font-size: 22px;
+    font-weight: 600;
+    color: var(--ink);
+  }
+  .progress-stat .label {
+    font-size: 11.5px;
+    color: var(--ink-soft);
+  }
+
+  .progress-bar-wrap { flex: 1 1 220px; min-width: 180px; }
+  .progress-bar-track {
+    height: 8px;
+    border-radius: 5px;
+    background: var(--surface-alt);
+    border: 1px solid var(--line);
+    overflow: hidden;
+  }
+  .progress-bar-fill {
+    height: 100%;
+    background: var(--accent);
+    border-radius: 5px 0 0 5px;
+    transition: width 0.35s ease;
+    width: 0%;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .progress-bar-fill { transition: none; }
+  }
+
+  /* ---- Toolbar ---- */
+  .toolbar {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  button {
+    font-family: var(--font-ui);
+    font-size: 13.5px;
+    font-weight: 600;
+    border-radius: 7px;
+    border: 1px solid var(--line);
+    background: var(--surface);
+    color: var(--ink);
+    padding: 9px 16px;
+    cursor: pointer;
+  }
+  button:hover { background: var(--surface-alt); }
+  button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  button.primary {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+  }
+  button.primary:hover { background: var(--accent-strong); border-color: var(--accent-strong); }
+
+  button.ghost-danger { color: var(--danger); border-color: var(--line); }
+  button.ghost-danger:hover { background: var(--danger-soft); border-color: var(--danger); }
+
+  /* ---- View toggle ---- */
+  .toolbar {
+    justify-content: space-between;
+  }
+
+  .view-toggle {
+    display: inline-flex;
+    padding: 3px;
+    background: var(--surface-alt);
+    border: 1px solid var(--line);
+    border-radius: 9px;
+    gap: 2px;
+  }
+  .view-toggle button {
+    border: none;
+    background: transparent;
+    padding: 7px 14px;
+    border-radius: 6px;
+    color: var(--ink-soft);
+  }
+  .view-toggle button:hover { background: transparent; color: var(--ink); }
+  .view-toggle button[aria-pressed="true"] {
+    background: var(--surface);
+    color: var(--ink);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+  }
+
+  .toolbar-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+
+  /* ---- Calendar ---- */
+  .calendar-card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+
+  .month-nav {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    padding: 18px 20px 14px;
+  }
+  .month-nav .month-label {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    font-size: 15px;
+    font-weight: 600;
+    min-width: 130px;
+    text-align: center;
+  }
+  .month-nav button {
+    padding: 6px 10px;
+    line-height: 1;
+  }
+  .month-nav .today-btn { margin-left: 8px; }
+
+  .weekday-row {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    border-top: 1px solid var(--line);
+    background: var(--surface-alt);
+  }
+  .weekday-row span {
+    padding: 8px 10px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--ink-soft);
+    text-align: center;
+  }
+  .weekday-row span:first-child { color: var(--danger); }
+  .weekday-row span:last-child { color: var(--accent); }
+
+  .calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+  }
+
+  .day-cell {
+    position: relative;
+    min-height: 96px;
+    padding: 6px 6px 8px;
+    border-right: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+  .day-cell:nth-child(7n) { border-right: none; }
+  .day-cell.outside { background: var(--surface-alt); }
+  .day-cell.outside .day-num { color: var(--ink-soft); opacity: 0.55; }
+
+  .day-num-row { display: flex; align-items: center; justify-content: space-between; }
+  .day-num {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    font-size: 12px;
+    color: var(--ink-soft);
+  }
+  .day-cell.is-today .day-num {
+    color: #fff;
+    background: var(--accent);
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .day-add {
+    border: none;
+    background: transparent;
+    color: var(--ink-soft);
+    font-size: 13px;
+    width: 18px;
+    height: 18px;
+    line-height: 1;
+    border-radius: 4px;
+    padding: 0;
+    opacity: 0.55;
+  }
+  .day-add:hover { opacity: 1; background: var(--accent-soft); color: var(--accent-strong); }
+
+  .chip-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    overflow-y: auto;
+    max-height: 84px;
+  }
+  .chip {
+    display: block;
+    width: 100%;
+    text-align: left;
+    font-size: 11.5px;
+    padding: 4px 6px;
+    border-radius: 5px;
+    border: 1px solid var(--line);
+    background: var(--surface-alt);
+    color: var(--ink);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    cursor: pointer;
+  }
+  .chip:hover { border-color: var(--accent); }
+  .chip.is-done {
+    background: var(--accent-soft);
+    border-color: var(--accent);
+    color: var(--accent-strong);
+  }
+
+  .unscheduled-note {
+    padding: 10px 20px 18px;
+    font-size: 12.5px;
+    color: var(--ink-soft);
+    border-top: 1px solid var(--line);
+    text-align: center;
+  }
+  .unscheduled-note button {
+    padding: 2px 8px;
+    font-size: 12px;
+    margin-left: 6px;
+  }
+
+  @keyframes rowFlash {
+    0% { background: var(--accent-soft); }
+    100% { background: transparent; }
+  }
+  tr.row-flash td input,
+  tr.row-flash td { background: transparent; }
+  tr.row-flash { animation: rowFlash 1.6s ease; }
+  @media (prefers-reduced-motion: reduce) {
+    tr.row-flash { animation: none; background: var(--accent-soft); }
+  }
+
+  /* ---- Table ---- */
+  .table-card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+  .table-scroll { overflow-x: auto; }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 880px;
+  }
+
+  thead th {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    text-align: left;
+    color: var(--ink-soft);
+    background: var(--surface-alt);
+    border-bottom: 1px solid var(--line);
+    padding: 12px 14px;
+    position: sticky;
+    top: 0;
+    white-space: nowrap;
+  }
+
+  tbody tr { border-bottom: 1px solid var(--line); }
+  tbody tr:last-child { border-bottom: none; }
+  tbody tr:nth-child(even) { background: var(--surface-alt); }
+  tbody tr.is-done { background: var(--accent-soft); }
+
+  td { padding: 6px 8px; vertical-align: middle; }
+
+  .col-num {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    text-align: center;
+    color: var(--ink-soft);
+    width: 44px;
+  }
+
+  td input[type="text"], td input[type="date"] {
+    width: 100%;
+    font-family: var(--font-ui);
+    font-size: 13.5px;
+    color: var(--ink);
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 5px;
+    padding: 7px 8px;
+  }
+  td input[type="date"] {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+  }
+  td input:hover { border-color: var(--line); }
+  td input:focus-visible {
+    outline: none;
+    border-color: var(--accent);
+    background: var(--surface);
+  }
+
+  .col-date { width: 140px; }
+  .col-unit { min-width: 150px; }
+  .col-content { min-width: 220px; }
+  .col-hw { min-width: 150px; }
+  .col-note { min-width: 140px; }
+
+  .col-done { width: 60px; text-align: center; }
+  .check {
+    width: 20px;
+    height: 20px;
+    accent-color: var(--accent);
+    cursor: pointer;
+  }
+
+  .col-del { width: 40px; text-align: center; }
+  .row-del {
+    border: none;
+    background: transparent;
+    color: var(--ink-soft);
+    font-size: 15px;
+    padding: 4px 8px;
+    border-radius: 5px;
+  }
+  .row-del:hover { color: var(--danger); background: var(--danger-soft); }
+
+  .empty-state {
+    padding: 40px 20px;
+    text-align: center;
+    color: var(--ink-soft);
+    font-size: 14px;
+  }
+
+  .footer-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 14px 32px;
+    border-top: 1px solid var(--line);
+    background: var(--surface-alt);
+  }
+
+  .save-status {
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+    color: var(--ink-soft);
+  }
+
+  /* ---- Print ---- */
+  @media print {
+    body { background: #fff; padding: 0; }
+    .toolbar, .row-del, .col-del, .footer-row, .day-add, .unscheduled-note,
+    .month-nav button { display: none !important; }
+    .header-card, .progress-card, .table-card, .calendar-card {
+      border: none;
+      box-shadow: none;
+    }
+    thead th { position: static; background: #eee !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    tbody tr.is-done { background: #f0f0f0 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .day-cell.is-today .day-num { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .chip.is-done { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  }
+</style>
+
+<div class="page">
+  <header class="header-card">
+    <div class="eyebrow">CLASS PROGRESS LOG</div>
+    <input class="subject-input" id="subjectInput" placeholder="과목명을 입력하세요 (예: 중2 수학)" aria-label="과목명" />
+    <div class="meta-row">
+      <div class="meta-field">
+        <label for="teacherInput">담당 교사</label>
+        <input type="text" id="teacherInput" placeholder="예: 김민준" />
+      </div>
+      <div class="meta-field">
+        <label for="classInput">학년 / 반</label>
+        <input type="text" id="classInput" placeholder="예: 2학년 3반" />
+      </div>
+      <div class="meta-field">
+        <label for="semesterInput">학기 / 기간</label>
+        <input type="text" id="semesterInput" placeholder="예: 2026학년도 2학기" />
+      </div>
+      <div class="meta-field">
+        <label for="bookInput">교재 / 커리큘럼</label>
+        <input type="text" id="bookInput" placeholder="예: 개념원리 수학2" />
+      </div>
+    </div>
+  </header>
+
+  <section class="progress-card" aria-label="진도 현황 요약">
+    <div class="progress-stat">
+      <span class="num" id="statTotal">0</span>
+      <span class="label">총 회차</span>
+    </div>
+    <div class="progress-stat">
+      <span class="num" id="statDone">0</span>
+      <span class="label">완료 회차</span>
+    </div>
+    <div class="progress-bar-wrap">
+      <div class="progress-bar-track">
+        <div class="progress-bar-fill" id="progressFill"></div>
+      </div>
+    </div>
+    <div class="progress-stat">
+      <span class="num" id="statPercent">0%</span>
+      <span class="label">진도율</span>
+    </div>
+  </section>
+
+  <div class="toolbar">
+    <div class="view-toggle" role="group" aria-label="보기 방식">
+      <button id="viewTableBtn" type="button" aria-pressed="true">표 보기</button>
+      <button id="viewCalendarBtn" type="button" aria-pressed="false">달력 보기</button>
+    </div>
+    <div class="toolbar-actions">
+      <button id="addRowBtn" class="primary" type="button">+ 회차 추가</button>
+      <button id="printBtn" type="button">인쇄</button>
+      <button id="resetBtn" class="ghost-danger" type="button">전체 초기화</button>
+    </div>
+  </div>
+
+  <div class="calendar-card" id="calendarCard" hidden>
+    <div class="month-nav">
+      <button id="prevMonthBtn" type="button" aria-label="이전 달">‹</button>
+      <span class="month-label" id="monthLabel">2026년 1월</span>
+      <button id="nextMonthBtn" type="button" aria-label="다음 달">›</button>
+      <button id="todayBtn" class="today-btn" type="button">오늘</button>
+    </div>
+    <div class="weekday-row">
+      <span>일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span>토</span>
+    </div>
+    <div class="calendar-grid" id="calendarGrid"></div>
+    <div class="unscheduled-note" id="unscheduledNote" hidden></div>
+  </div>
+
+  <div class="table-card" id="tableCard">
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th class="col-num">회차</th>
+            <th class="col-date">날짜</th>
+            <th class="col-unit">단원 / 주제</th>
+            <th class="col-content">학습 내용</th>
+            <th class="col-hw">과제</th>
+            <th class="col-note">비고</th>
+            <th class="col-done">완료</th>
+            <th class="col-del"></th>
+          </tr>
+        </thead>
+        <tbody id="tableBody"></tbody>
+      </table>
+    </div>
+    <div class="empty-state" id="emptyState" hidden>아직 회차가 없습니다. 위의 “+ 회차 추가” 버튼으로 시작하세요.</div>
+    <div class="footer-row">
+      <span class="save-status" id="saveStatus">저장 대기 중</span>
+      <span class="save-status">이 브라우저에 자동 저장됩니다</span>
+    </div>
+  </div>
+</div>
+
+<script>
+  const STORAGE_KEY = "classProgressTracker_v1";
+
+  const defaultState = {
+    meta: { subject: "", teacher: "", classGroup: "", semester: "", book: "" },
+    rows: [
+      { date: "", unit: "", content: "", hw: "", note: "", done: false },
+      { date: "", unit: "", content: "", hw: "", note: "", done: false },
+      { date: "", unit: "", content: "", hw: "", note: "", done: false }
+    ]
+  };
+
+  function loadState() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return structuredClone(defaultState);
+      const parsed = JSON.parse(raw);
+      if (!parsed.meta || !Array.isArray(parsed.rows)) return structuredClone(defaultState);
+      return parsed;
+    } catch (e) {
+      return structuredClone(defaultState);
+    }
+  }
+
+  let state = loadState();
+  let saveTimer = null;
+
+  const el = {
+    subject: document.getElementById("subjectInput"),
+    teacher: document.getElementById("teacherInput"),
+    classGroup: document.getElementById("classInput"),
+    semester: document.getElementById("semesterInput"),
+    book: document.getElementById("bookInput"),
+    tbody: document.getElementById("tableBody"),
+    empty: document.getElementById("emptyState"),
+    statTotal: document.getElementById("statTotal"),
+    statDone: document.getElementById("statDone"),
+    statPercent: document.getElementById("statPercent"),
+    fill: document.getElementById("progressFill"),
+    saveStatus: document.getElementById("saveStatus"),
+    tableCard: document.getElementById("tableCard"),
+    calendarCard: document.getElementById("calendarCard"),
+    viewTableBtn: document.getElementById("viewTableBtn"),
+    viewCalendarBtn: document.getElementById("viewCalendarBtn"),
+    monthLabel: document.getElementById("monthLabel"),
+    calendarGrid: document.getElementById("calendarGrid"),
+    unscheduledNote: document.getElementById("unscheduledNote"),
+    prevMonthBtn: document.getElementById("prevMonthBtn"),
+    nextMonthBtn: document.getElementById("nextMonthBtn"),
+    todayBtn: document.getElementById("todayBtn"),
+  };
+
+  const today = new Date();
+  let currentMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+  let currentView = "table";
+
+  function fillMetaInputs() {
+    el.subject.value = state.meta.subject;
+    el.teacher.value = state.meta.teacher;
+    el.classGroup.value = state.meta.classGroup;
+    el.semester.value = state.meta.semester;
+    el.book.value = state.meta.book;
+  }
+
+  function scheduleSave() {
+    el.saveStatus.textContent = "저장 중…";
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(() => {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      const now = new Date();
+      const hh = String(now.getHours()).padStart(2, "0");
+      const mm = String(now.getMinutes()).padStart(2, "0");
+      el.saveStatus.textContent = `${hh}:${mm}에 저장됨`;
+    }, 350);
+  }
+
+  function renderStats() {
+    const total = state.rows.length;
+    const done = state.rows.filter(r => r.done).length;
+    const percent = total ? Math.round((done / total) * 100) : 0;
+    el.statTotal.textContent = total;
+    el.statDone.textContent = done;
+    el.statPercent.textContent = percent + "%";
+    el.fill.style.width = percent + "%";
+  }
+
+  function renderRows() {
+    el.tbody.innerHTML = "";
+    el.empty.hidden = state.rows.length > 0;
+
+    state.rows.forEach((row, idx) => {
+      const tr = document.createElement("tr");
+      if (row.done) tr.classList.add("is-done");
+
+      tr.innerHTML = `
+        <td class="col-num">${idx + 1}</td>
+        <td class="col-date"><input type="date" value="${row.date}" aria-label="${idx + 1}회차 날짜" /></td>
+        <td class="col-unit"><input type="text" value="${escapeAttr(row.unit)}" placeholder="단원명" aria-label="${idx + 1}회차 단원" /></td>
+        <td class="col-content"><input type="text" value="${escapeAttr(row.content)}" placeholder="학습 내용" aria-label="${idx + 1}회차 학습내용" /></td>
+        <td class="col-hw"><input type="text" value="${escapeAttr(row.hw)}" placeholder="과제" aria-label="${idx + 1}회차 과제" /></td>
+        <td class="col-note"><input type="text" value="${escapeAttr(row.note)}" placeholder="비고" aria-label="${idx + 1}회차 비고" /></td>
+        <td class="col-done"><input type="checkbox" class="check" ${row.done ? "checked" : ""} aria-label="${idx + 1}회차 완료 여부" /></td>
+        <td class="col-del"><button type="button" class="row-del" title="이 회차 삭제" aria-label="${idx + 1}회차 삭제">✕</button></td>
+      `;
+
+      const [dateInput, unitInput, contentInput, hwInput, noteInput] = tr.querySelectorAll('input[type="text"], input[type="date"]');
+      dateInput.addEventListener("input", () => { row.date = dateInput.value; scheduleSave(); });
+      unitInput.addEventListener("input", () => { row.unit = unitInput.value; scheduleSave(); });
+      contentInput.addEventListener("input", () => { row.content = contentInput.value; scheduleSave(); });
+      hwInput.addEventListener("input", () => { row.hw = hwInput.value; scheduleSave(); });
+      noteInput.addEventListener("input", () => { row.note = noteInput.value; scheduleSave(); });
+
+      const checkbox = tr.querySelector(".check");
+      checkbox.addEventListener("change", () => {
+        row.done = checkbox.checked;
+        tr.classList.toggle("is-done", row.done);
+        renderStats();
+        scheduleSave();
+      });
+
+      tr.querySelector(".row-del").addEventListener("click", () => {
+        state.rows.splice(idx, 1);
+        renderRows();
+        renderStats();
+        scheduleSave();
+      });
+
+      el.tbody.appendChild(tr);
+    });
+  }
+
+  function escapeAttr(str) {
+    return String(str ?? "").replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
+  }
+
+  function addRow(dateStr) {
+    state.rows.push({ date: dateStr || "", unit: "", content: "", hw: "", note: "", done: false });
+    const newIdx = state.rows.length - 1;
+    renderRows();
+    renderStats();
+    scheduleSave();
+    return newIdx;
+  }
+
+  function focusRowInTable(idx, focusUnit) {
+    switchView("table");
+    const tr = el.tbody.children[idx];
+    if (!tr) return;
+    tr.scrollIntoView({ block: "center", behavior: "smooth" });
+    tr.classList.remove("row-flash");
+    void tr.offsetWidth;
+    tr.classList.add("row-flash");
+    if (focusUnit) {
+      const unitInput = tr.querySelector(".col-unit input");
+      if (unitInput) unitInput.focus();
+    }
+  }
+
+  function switchView(view) {
+    currentView = view;
+    const isTable = view === "table";
+    el.tableCard.hidden = !isTable;
+    el.calendarCard.hidden = isTable;
+    el.viewTableBtn.setAttribute("aria-pressed", String(isTable));
+    el.viewCalendarBtn.setAttribute("aria-pressed", String(!isTable));
+    if (!isTable) renderCalendar();
+  }
+
+  function pad2(n) { return String(n).padStart(2, "0"); }
+  function toDateStr(y, m, d) { return `${y}-${pad2(m + 1)}-${pad2(d)}`; }
+
+  function renderCalendar() {
+    const year = currentMonth.getFullYear();
+    const month = currentMonth.getMonth();
+    el.monthLabel.textContent = `${year}년 ${month + 1}월`;
+
+    const byDate = {};
+    state.rows.forEach((row, idx) => {
+      if (!row.date) return;
+      (byDate[row.date] = byDate[row.date] || []).push({ row, idx });
+    });
+
+    const firstOfMonth = new Date(year, month, 1);
+    const startOffset = firstOfMonth.getDay();
+    const gridStart = new Date(year, month, 1 - startOffset);
+    const todayStr = toDateStr(today.getFullYear(), today.getMonth(), today.getDate());
+
+    el.calendarGrid.innerHTML = "";
+    for (let i = 0; i < 42; i++) {
+      const cellDate = new Date(gridStart.getFullYear(), gridStart.getMonth(), gridStart.getDate() + i);
+      const dateStr = toDateStr(cellDate.getFullYear(), cellDate.getMonth(), cellDate.getDate());
+      const isOutside = cellDate.getMonth() !== month;
+      const isToday = dateStr === todayStr;
+
+      const cell = document.createElement("div");
+      cell.className = "day-cell" + (isOutside ? " outside" : "") + (isToday ? " is-today" : "");
+
+      const numRow = document.createElement("div");
+      numRow.className = "day-num-row";
+      numRow.innerHTML = `<span class="day-num">${cellDate.getDate()}</span>`;
+      const addBtn = document.createElement("button");
+      addBtn.className = "day-add";
+      addBtn.type = "button";
+      addBtn.textContent = "+";
+      addBtn.setAttribute("aria-label", `${dateStr} 회차 추가`);
+      addBtn.addEventListener("click", () => {
+        const idx = addRow(dateStr);
+        focusRowInTable(idx, true);
+      });
+      numRow.appendChild(addBtn);
+      cell.appendChild(numRow);
+
+      const entries = byDate[dateStr];
+      if (entries && entries.length) {
+        const list = document.createElement("div");
+        list.className = "chip-list";
+        entries.forEach(({ row, idx }) => {
+          const chip = document.createElement("button");
+          chip.type = "button";
+          chip.className = "chip" + (row.done ? " is-done" : "");
+          chip.textContent = row.unit || row.content || "(제목 없음)";
+          chip.title = row.unit || row.content || "";
+          chip.addEventListener("click", () => focusRowInTable(idx, false));
+          list.appendChild(chip);
+        });
+        cell.appendChild(list);
+      }
+
+      el.calendarGrid.appendChild(cell);
+    }
+
+    const unscheduled = state.rows.filter(r => !r.date).length;
+    if (unscheduled > 0) {
+      el.unscheduledNote.hidden = false;
+      el.unscheduledNote.innerHTML = `날짜가 지정되지 않은 회차 ${unscheduled}건이 있습니다.`;
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.textContent = "표에서 보기";
+      btn.addEventListener("click", () => switchView("table"));
+      el.unscheduledNote.appendChild(btn);
+    } else {
+      el.unscheduledNote.hidden = true;
+    }
+  }
+
+  [
+    [el.subject, "subject"],
+    [el.teacher, "teacher"],
+    [el.classGroup, "classGroup"],
+    [el.semester, "semester"],
+    [el.book, "book"],
+  ].forEach(([input, key]) => {
+    input.addEventListener("input", () => {
+      state.meta[key] = input.value;
+      scheduleSave();
+    });
+  });
+
+  document.getElementById("addRowBtn").addEventListener("click", () => {
+    const idx = addRow();
+    if (currentView === "table") {
+      const inputs = el.tbody.children[idx].querySelectorAll("input");
+      if (inputs.length) inputs[1].focus();
+    } else {
+      renderCalendar();
+    }
+  });
+  document.getElementById("printBtn").addEventListener("click", () => window.print());
+
+  el.viewTableBtn.addEventListener("click", () => switchView("table"));
+  el.viewCalendarBtn.addEventListener("click", () => switchView("calendar"));
+  el.prevMonthBtn.addEventListener("click", () => {
+    currentMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1);
+    renderCalendar();
+  });
+  el.nextMonthBtn.addEventListener("click", () => {
+    currentMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1);
+    renderCalendar();
+  });
+  el.todayBtn.addEventListener("click", () => {
+    currentMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+    renderCalendar();
+  });
+  document.getElementById("resetBtn").addEventListener("click", () => {
+    if (confirm("모든 진도표 내용을 초기화할까요? 이 작업은 되돌릴 수 없습니다.")) {
+      state = structuredClone(defaultState);
+      fillMetaInputs();
+      renderRows();
+      renderStats();
+      if (currentView === "calendar") renderCalendar();
+      scheduleSave();
+    }
+  });
+
+  fillMetaInputs();
+  renderRows();
+  renderStats();
+</script>
