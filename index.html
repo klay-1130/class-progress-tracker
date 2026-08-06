@@ -78,6 +78,58 @@
     gap: 20px;
   }
 
+  /* ---- Subject tabs ---- */
+  .subject-tabs {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    overflow-x: auto;
+    padding-bottom: 2px;
+  }
+  .tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 8px 7px 14px;
+    border-radius: 8px;
+    border: 1px solid var(--line);
+    background: var(--surface);
+    color: var(--ink-soft);
+    font-size: 13px;
+    font-weight: 600;
+    white-space: nowrap;
+    cursor: pointer;
+  }
+  .tab:hover { border-color: var(--accent); color: var(--ink); }
+  .tab.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .tab-close {
+    border: none;
+    background: transparent;
+    color: var(--ink-soft);
+    font-size: 12px;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    line-height: 1;
+    padding: 0;
+  }
+  .tab-close:hover { background: var(--danger-soft); color: var(--danger); }
+  .tab.active .tab-close { color: rgba(255, 255, 255, 0.75); }
+  .tab.active .tab-close:hover { background: rgba(255, 255, 255, 0.2); color: #fff; }
+  .tab-add {
+    display: inline-flex;
+    align-items: center;
+    padding: 7px 14px;
+    border-radius: 8px;
+    border: 1px dashed var(--line);
+    background: transparent;
+    color: var(--ink-soft);
+    font-size: 13px;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .tab-add:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+
   /* ---- Header ---- */
   .header-card {
     background: var(--surface);
@@ -199,7 +251,7 @@
   /* ---- Toolbar ---- */
   .toolbar {
     display: flex;
-    justify-content: flex-end;
+    justify-content: space-between;
     gap: 10px;
     flex-wrap: wrap;
   }
@@ -227,11 +279,6 @@
 
   button.ghost-danger { color: var(--danger); border-color: var(--line); }
   button.ghost-danger:hover { background: var(--danger-soft); border-color: var(--danger); }
-
-  /* ---- View toggle ---- */
-  .toolbar {
-    justify-content: space-between;
-  }
 
   .view-toggle {
     display: inline-flex;
@@ -418,7 +465,7 @@
   table {
     width: 100%;
     border-collapse: collapse;
-    min-width: 880px;
+    min-width: 960px;
   }
 
   thead th {
@@ -473,6 +520,7 @@
   }
 
   .col-date { width: 140px; }
+  .col-class { width: 90px; }
   .col-unit { min-width: 150px; }
   .col-content { min-width: 220px; }
   .col-hw { min-width: 150px; }
@@ -523,7 +571,7 @@
   @media print {
     body { background: #fff; padding: 0; }
     .toolbar, .row-del, .col-del, .footer-row, .day-add, .unscheduled-note,
-    .month-nav button { display: none !important; }
+    .month-nav button, .subject-tabs { display: none !important; }
     .header-card, .progress-card, .table-card, .calendar-card {
       border: none;
       box-shadow: none;
@@ -536,6 +584,8 @@
 </style>
 
 <div class="page">
+  <nav class="subject-tabs" id="subjectTabs" aria-label="과목 목록"></nav>
+
   <header class="header-card">
     <div class="eyebrow">CLASS PROGRESS LOG</div>
     <input class="subject-input" id="subjectInput" placeholder="과목명을 입력하세요 (예: 중2 수학)" aria-label="과목명" />
@@ -543,10 +593,6 @@
       <div class="meta-field">
         <label for="teacherInput">담당 교사</label>
         <input type="text" id="teacherInput" placeholder="예: 김민준" />
-      </div>
-      <div class="meta-field">
-        <label for="classInput">학년 / 반</label>
-        <input type="text" id="classInput" placeholder="예: 2학년 3반" />
       </div>
       <div class="meta-field">
         <label for="semesterInput">학기 / 기간</label>
@@ -587,7 +633,7 @@
     <div class="toolbar-actions">
       <button id="addRowBtn" class="primary" type="button">+ 회차 추가</button>
       <button id="printBtn" type="button">인쇄</button>
-      <button id="resetBtn" class="ghost-danger" type="button">전체 초기화</button>
+      <button id="resetBtn" class="ghost-danger" type="button">이 과목 초기화</button>
     </div>
   </div>
 
@@ -612,6 +658,7 @@
           <tr>
             <th class="col-num">회차</th>
             <th class="col-date">날짜</th>
+            <th class="col-class">반</th>
             <th class="col-unit">단원 / 주제</th>
             <th class="col-content">학습 내용</th>
             <th class="col-hw">과제</th>
@@ -632,36 +679,76 @@
 </div>
 
 <script>
-  const STORAGE_KEY = "classProgressTracker_v1";
+  const STORAGE_KEY = "classProgressTracker_v2";
+  const LEGACY_KEY = "classProgressTracker_v1";
 
-  const defaultState = {
-    meta: { subject: "", teacher: "", classGroup: "", semester: "", book: "" },
-    rows: [
-      { date: "", unit: "", content: "", hw: "", note: "", done: false },
-      { date: "", unit: "", content: "", hw: "", note: "", done: false },
-      { date: "", unit: "", content: "", hw: "", note: "", done: false }
-    ]
-  };
+  function makeId() {
+    return (crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(16).slice(2)}`);
+  }
+
+  function makeRow(overrides) {
+    return Object.assign({ date: "", classGroup: "", unit: "", content: "", hw: "", note: "", done: false }, overrides || {});
+  }
+
+  function makeSubject(name) {
+    return {
+      id: makeId(),
+      name: name || "",
+      teacher: "",
+      semester: "",
+      book: "",
+      rows: [makeRow(), makeRow(), makeRow()],
+    };
+  }
+
+  function freshState() {
+    const subject = makeSubject("과목 1");
+    return { subjects: [subject], activeId: subject.id };
+  }
+
+  function migrateLegacy() {
+    try {
+      const raw = localStorage.getItem(LEGACY_KEY);
+      if (!raw) return null;
+      const old = JSON.parse(raw);
+      if (!old.meta || !Array.isArray(old.rows)) return null;
+      const subject = {
+        id: makeId(),
+        name: old.meta.subject || "과목 1",
+        teacher: old.meta.teacher || "",
+        semester: old.meta.semester || "",
+        book: old.meta.book || "",
+        rows: old.rows.map(r => makeRow({ ...r, classGroup: old.meta.classGroup || "" })),
+      };
+      return { subjects: [subject], activeId: subject.id };
+    } catch (e) {
+      return null;
+    }
+  }
 
   function loadState() {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
-      if (!raw) return structuredClone(defaultState);
-      const parsed = JSON.parse(raw);
-      if (!parsed.meta || !Array.isArray(parsed.rows)) return structuredClone(defaultState);
-      return parsed;
-    } catch (e) {
-      return structuredClone(defaultState);
-    }
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed.subjects) && parsed.subjects.length && parsed.activeId) return parsed;
+      }
+    } catch (e) { /* fall through */ }
+    const migrated = migrateLegacy();
+    if (migrated) return migrated;
+    return freshState();
   }
 
   let state = loadState();
   let saveTimer = null;
+  const today = new Date();
+  let currentMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+  let currentView = "table";
 
   const el = {
+    tabs: document.getElementById("subjectTabs"),
     subject: document.getElementById("subjectInput"),
     teacher: document.getElementById("teacherInput"),
-    classGroup: document.getElementById("classInput"),
     semester: document.getElementById("semesterInput"),
     book: document.getElementById("bookInput"),
     tbody: document.getElementById("tableBody"),
@@ -683,16 +770,12 @@
     todayBtn: document.getElementById("todayBtn"),
   };
 
-  const today = new Date();
-  let currentMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-  let currentView = "table";
+  function activeSubject() {
+    return state.subjects.find(s => s.id === state.activeId) || state.subjects[0];
+  }
 
-  function fillMetaInputs() {
-    el.subject.value = state.meta.subject;
-    el.teacher.value = state.meta.teacher;
-    el.classGroup.value = state.meta.classGroup;
-    el.semester.value = state.meta.semester;
-    el.book.value = state.meta.book;
+  function escapeAttr(str) {
+    return String(str ?? "").replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
   }
 
   function scheduleSave() {
@@ -707,9 +790,77 @@
     }, 350);
   }
 
+  function renderTabs() {
+    el.tabs.innerHTML = "";
+    state.subjects.forEach(subject => {
+      const tab = document.createElement("button");
+      tab.type = "button";
+      tab.className = "tab" + (subject.id === state.activeId ? " active" : "");
+      tab.setAttribute("aria-pressed", String(subject.id === state.activeId));
+
+      const label = document.createElement("span");
+      label.textContent = subject.name || "(제목 없는 과목)";
+      tab.appendChild(label);
+
+      if (state.subjects.length > 1) {
+        const close = document.createElement("button");
+        close.type = "button";
+        close.className = "tab-close";
+        close.textContent = "✕";
+        close.setAttribute("aria-label", `${subject.name || "이 과목"} 삭제`);
+        close.addEventListener("click", (evt) => {
+          evt.stopPropagation();
+          if (confirm(`"${subject.name || "제목 없는 과목"}" 과목을 삭제할까요? 이 작업은 되돌릴 수 없습니다.`)) {
+            const idx = state.subjects.findIndex(s => s.id === subject.id);
+            state.subjects.splice(idx, 1);
+            if (state.activeId === subject.id) {
+              state.activeId = state.subjects[Math.max(0, idx - 1)].id;
+            }
+            renderAll();
+            scheduleSave();
+          }
+        });
+        tab.appendChild(close);
+      }
+
+      tab.addEventListener("click", () => {
+        if (state.activeId === subject.id) return;
+        state.activeId = subject.id;
+        renderAll();
+        scheduleSave();
+      });
+
+      el.tabs.appendChild(tab);
+    });
+
+    const addTab = document.createElement("button");
+    addTab.type = "button";
+    addTab.className = "tab-add";
+    addTab.textContent = "+ 과목 추가";
+    addTab.addEventListener("click", () => {
+      const subject = makeSubject(`과목 ${state.subjects.length + 1}`);
+      state.subjects.push(subject);
+      state.activeId = subject.id;
+      renderAll();
+      scheduleSave();
+      el.subject.focus();
+      el.subject.select();
+    });
+    el.tabs.appendChild(addTab);
+  }
+
+  function fillHeaderInputs() {
+    const subject = activeSubject();
+    el.subject.value = subject.name;
+    el.teacher.value = subject.teacher;
+    el.semester.value = subject.semester;
+    el.book.value = subject.book;
+  }
+
   function renderStats() {
-    const total = state.rows.length;
-    const done = state.rows.filter(r => r.done).length;
+    const rows = activeSubject().rows;
+    const total = rows.length;
+    const done = rows.filter(r => r.done).length;
     const percent = total ? Math.round((done / total) * 100) : 0;
     el.statTotal.textContent = total;
     el.statDone.textContent = done;
@@ -718,16 +869,18 @@
   }
 
   function renderRows() {
+    const rows = activeSubject().rows;
     el.tbody.innerHTML = "";
-    el.empty.hidden = state.rows.length > 0;
+    el.empty.hidden = rows.length > 0;
 
-    state.rows.forEach((row, idx) => {
+    rows.forEach((row, idx) => {
       const tr = document.createElement("tr");
       if (row.done) tr.classList.add("is-done");
 
       tr.innerHTML = `
         <td class="col-num">${idx + 1}</td>
         <td class="col-date"><input type="date" value="${row.date}" aria-label="${idx + 1}회차 날짜" /></td>
+        <td class="col-class"><input type="text" value="${escapeAttr(row.classGroup)}" placeholder="반" aria-label="${idx + 1}회차 반" /></td>
         <td class="col-unit"><input type="text" value="${escapeAttr(row.unit)}" placeholder="단원명" aria-label="${idx + 1}회차 단원" /></td>
         <td class="col-content"><input type="text" value="${escapeAttr(row.content)}" placeholder="학습 내용" aria-label="${idx + 1}회차 학습내용" /></td>
         <td class="col-hw"><input type="text" value="${escapeAttr(row.hw)}" placeholder="과제" aria-label="${idx + 1}회차 과제" /></td>
@@ -736,8 +889,9 @@
         <td class="col-del"><button type="button" class="row-del" title="이 회차 삭제" aria-label="${idx + 1}회차 삭제">✕</button></td>
       `;
 
-      const [dateInput, unitInput, contentInput, hwInput, noteInput] = tr.querySelectorAll('input[type="text"], input[type="date"]');
+      const [dateInput, classInput, unitInput, contentInput, hwInput, noteInput] = tr.querySelectorAll('input[type="text"], input[type="date"]');
       dateInput.addEventListener("input", () => { row.date = dateInput.value; scheduleSave(); });
+      classInput.addEventListener("input", () => { row.classGroup = classInput.value; scheduleSave(); });
       unitInput.addEventListener("input", () => { row.unit = unitInput.value; scheduleSave(); });
       contentInput.addEventListener("input", () => { row.content = contentInput.value; scheduleSave(); });
       hwInput.addEventListener("input", () => { row.hw = hwInput.value; scheduleSave(); });
@@ -752,7 +906,7 @@
       });
 
       tr.querySelector(".row-del").addEventListener("click", () => {
-        state.rows.splice(idx, 1);
+        rows.splice(idx, 1);
         renderRows();
         renderStats();
         scheduleSave();
@@ -762,13 +916,10 @@
     });
   }
 
-  function escapeAttr(str) {
-    return String(str ?? "").replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
-  }
-
   function addRow(dateStr) {
-    state.rows.push({ date: dateStr || "", unit: "", content: "", hw: "", note: "", done: false });
-    const newIdx = state.rows.length - 1;
+    const rows = activeSubject().rows;
+    rows.push(makeRow({ date: dateStr || "" }));
+    const newIdx = rows.length - 1;
     renderRows();
     renderStats();
     scheduleSave();
@@ -803,12 +954,13 @@
   function toDateStr(y, m, d) { return `${y}-${pad2(m + 1)}-${pad2(d)}`; }
 
   function renderCalendar() {
+    const rows = activeSubject().rows;
     const year = currentMonth.getFullYear();
     const month = currentMonth.getMonth();
     el.monthLabel.textContent = `${year}년 ${month + 1}월`;
 
     const byDate = {};
-    state.rows.forEach((row, idx) => {
+    rows.forEach((row, idx) => {
       if (!row.date) return;
       (byDate[row.date] = byDate[row.date] || []).push({ row, idx });
     });
@@ -851,8 +1003,9 @@
           const chip = document.createElement("button");
           chip.type = "button";
           chip.className = "chip" + (row.done ? " is-done" : "");
-          chip.textContent = row.unit || row.content || "(제목 없음)";
-          chip.title = row.unit || row.content || "";
+          const title = row.unit || row.content || "(제목 없음)";
+          chip.textContent = row.classGroup ? `${row.classGroup} · ${title}` : title;
+          chip.title = chip.textContent;
           chip.addEventListener("click", () => focusRowInTable(idx, false));
           list.appendChild(chip);
         });
@@ -862,7 +1015,7 @@
       el.calendarGrid.appendChild(cell);
     }
 
-    const unscheduled = state.rows.filter(r => !r.date).length;
+    const unscheduled = rows.filter(r => !r.date).length;
     if (unscheduled > 0) {
       el.unscheduledNote.hidden = false;
       el.unscheduledNote.innerHTML = `날짜가 지정되지 않은 회차 ${unscheduled}건이 있습니다.`;
@@ -876,15 +1029,23 @@
     }
   }
 
+  function renderAll() {
+    renderTabs();
+    fillHeaderInputs();
+    renderRows();
+    renderStats();
+    if (currentView === "calendar") renderCalendar();
+  }
+
   [
-    [el.subject, "subject"],
+    [el.subject, "name"],
     [el.teacher, "teacher"],
-    [el.classGroup, "classGroup"],
     [el.semester, "semester"],
     [el.book, "book"],
   ].forEach(([input, key]) => {
     input.addEventListener("input", () => {
-      state.meta[key] = input.value;
+      activeSubject()[key] = input.value;
+      if (key === "name") renderTabs();
       scheduleSave();
     });
   });
@@ -915,9 +1076,9 @@
     renderCalendar();
   });
   document.getElementById("resetBtn").addEventListener("click", () => {
-    if (confirm("모든 진도표 내용을 초기화할까요? 이 작업은 되돌릴 수 없습니다.")) {
-      state = structuredClone(defaultState);
-      fillMetaInputs();
+    const subject = activeSubject();
+    if (confirm(`"${subject.name || "이 과목"}"의 진도표 내용을 초기화할까요? 이 작업은 되돌릴 수 없습니다.`)) {
+      subject.rows = [makeRow(), makeRow(), makeRow()];
       renderRows();
       renderStats();
       if (currentView === "calendar") renderCalendar();
@@ -925,7 +1086,5 @@
     }
   });
 
-  fillMetaInputs();
-  renderRows();
-  renderStats();
+  renderAll();
 </script>
