@@ -1251,11 +1251,15 @@
             jump.type = "button";
             jump.className = "tt-jump";
             jump.textContent = "→";
-            jump.title = "이 과목 진도표로 이동";
+            jump.title = "오늘 날짜로 진도를 추가하며 이 과목 진도표로 이동";
             jump.addEventListener("click", () => {
               state.activeId = select.value;
-              switchView("table");
+              const todayStr = toDateStr(today.getFullYear(), today.getMonth(), today.getDate());
+              const idx = addRow(todayStr);
+              if (cellData.classGroup) activeSubject().rows[idx].classGroup = cellData.classGroup;
               renderAll();
+              focusRowInTable(idx, true);
+              scheduleSave();
             });
             topRow.appendChild(jump);
           }
