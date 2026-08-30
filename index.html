@@ -122,7 +122,7 @@
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    padding: 7px 8px 7px 14px;
+    padding: 7px 8px 7px 10px;
     border-radius: 8px;
     border: 1px solid var(--line);
     background: var(--surface);
@@ -132,8 +132,14 @@
     white-space: nowrap;
     cursor: pointer;
   }
-  .tab:hover { border-color: var(--accent); color: var(--ink); }
-  .tab.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .tab-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--tab-color, var(--ink-soft)); flex: none; }
+  .tab:hover { border-color: var(--tab-color, var(--accent)); color: var(--ink); }
+  .tab.active {
+    background: color-mix(in oklab, var(--tab-color, var(--accent)) 30%, var(--surface));
+    border-color: var(--tab-color, var(--accent));
+    color: var(--ink);
+  }
+  .tab.active .tab-dot { background: var(--tab-color, var(--accent)); }
   .tab-close {
     border: none;
     background: transparent;
@@ -146,8 +152,6 @@
     padding: 0;
   }
   .tab-close:hover { background: var(--danger-soft); color: var(--danger); }
-  .tab.active .tab-close { color: rgba(255, 255, 255, 0.75); }
-  .tab.active .tab-close:hover { background: rgba(255, 255, 255, 0.2); color: #fff; }
   .tab-add {
     display: inline-flex;
     align-items: center;
@@ -453,6 +457,7 @@
     padding: 4px 6px;
     border-radius: 5px;
     border: 1px solid var(--line);
+    border-left: 3px solid var(--cal-color, var(--line));
     background: var(--surface-alt);
     color: var(--ink);
     white-space: nowrap;
@@ -460,11 +465,11 @@
     text-overflow: ellipsis;
     cursor: pointer;
   }
-  .chip:hover { border-color: var(--accent); }
+  .chip:hover { border-color: var(--cal-color, var(--accent)); }
   .chip.is-done {
-    background: var(--accent-soft);
-    border-color: var(--accent);
-    color: var(--accent-strong);
+    background: color-mix(in oklab, var(--cal-color, var(--accent)) 22%, var(--surface));
+    border-color: var(--cal-color, var(--accent));
+    color: var(--ink);
   }
 
   .unscheduled-note {
@@ -557,18 +562,26 @@
     background: var(--surface);
   }
 
-  .col-subject { min-width: 110px; white-space: nowrap; }
+  .col-subject {
+    min-width: 110px;
+    white-space: nowrap;
+    border-left: 3px solid var(--link-color, transparent);
+  }
   .subject-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
     border: none;
     background: transparent;
     padding: 0;
     font: inherit;
     font-weight: 600;
-    color: var(--accent-strong);
+    color: var(--ink);
     cursor: pointer;
     text-align: left;
   }
   .subject-link:hover { text-decoration: underline; }
+  .subject-link .tab-dot { background: var(--link-color, var(--ink-soft)); }
 
   .col-date { width: 140px; }
   .col-class { width: 90px; }
@@ -997,6 +1010,11 @@
       tab.type = "button";
       tab.className = "tab" + (subject.id === state.activeId ? " active" : "");
       tab.setAttribute("aria-pressed", String(subject.id === state.activeId));
+      tab.style.setProperty("--tab-color", subjectColorVar(subject));
+
+      const dot = document.createElement("span");
+      dot.className = "tab-dot";
+      tab.appendChild(dot);
 
       const label = document.createElement("span");
       label.textContent = subject.name || "(제목 없는 과목)";
@@ -1162,7 +1180,7 @@
 
       const subjectName = subject.name || "(제목 없는 과목)";
       tr.innerHTML = `
-        <td class="col-subject"><button type="button" class="subject-link">${escapeAttr(subjectName)}</button></td>
+        <td class="col-subject"><button type="button" class="subject-link"><span class="tab-dot"></span>${escapeAttr(subjectName)}</button></td>
         <td class="col-num">${idx + 1}</td>
         <td class="col-date"><input type="date" value="${row.date}" aria-label="${subjectName} ${idx + 1}회차 날짜" /></td>
         <td class="col-class"><input type="text" value="${escapeAttr(row.classGroup)}" placeholder="반" aria-label="${subjectName} ${idx + 1}회차 반" /></td>
@@ -1173,6 +1191,8 @@
         <td class="col-done"><input type="checkbox" class="check" ${row.done ? "checked" : ""} aria-label="${subjectName} ${idx + 1}회차 완료 여부" /></td>
         <td class="col-del"><button type="button" class="row-del" title="이 회차 삭제" aria-label="${subjectName} ${idx + 1}회차 삭제">✕</button></td>
       `;
+
+      tr.querySelector(".col-subject").style.setProperty("--link-color", subjectColorVar(subject));
 
       tr.querySelector(".subject-link").addEventListener("click", () => {
         state.activeId = subject.id;
@@ -1243,7 +1263,9 @@
   function toDateStr(y, m, d) { return `${y}-${pad2(m + 1)}-${pad2(d)}`; }
 
   function renderCalendar() {
-    const rows = activeSubject().rows;
+    const subject = activeSubject();
+    const rows = subject.rows;
+    el.calendarGrid.style.setProperty("--cal-color", subjectColorVar(subject));
     const year = currentMonth.getFullYear();
     const month = currentMonth.getMonth();
     el.monthLabel.textContent = `${year}년 ${month + 1}월`;
