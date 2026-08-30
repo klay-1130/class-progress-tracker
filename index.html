@@ -304,6 +304,12 @@
 
   .toolbar-actions { display: flex; gap: 10px; flex-wrap: wrap; }
 
+  #combinedToggleBtn[aria-pressed="true"] {
+    background: var(--accent-soft);
+    border-color: var(--accent);
+    color: var(--accent-strong);
+  }
+
   /* ---- Calendar ---- */
   .calendar-card {
     background: var(--surface);
@@ -519,6 +525,19 @@
     background: var(--surface);
   }
 
+  .col-subject { min-width: 110px; white-space: nowrap; }
+  .subject-link {
+    border: none;
+    background: transparent;
+    padding: 0;
+    font: inherit;
+    font-weight: 600;
+    color: var(--accent-strong);
+    cursor: pointer;
+    text-align: left;
+  }
+  .subject-link:hover { text-decoration: underline; }
+
   .col-date { width: 140px; }
   .col-class { width: 90px; }
   .col-unit { min-width: 150px; }
@@ -727,6 +746,7 @@
       <button id="viewTimetableBtn" type="button" aria-pressed="false">시간표 보기</button>
     </div>
     <div class="toolbar-actions">
+      <button id="combinedToggleBtn" type="button" aria-pressed="false">전체 과목 통합 보기</button>
       <button id="addRowBtn" class="primary" type="button">+ 회차 추가</button>
       <button id="importExcelBtn" class="primary" type="button" hidden>엑셀 불러오기</button>
       <input type="file" id="excelFileInput" accept=".xlsx,.csv" hidden />
@@ -767,17 +787,7 @@
     <div class="table-scroll">
       <table>
         <thead>
-          <tr>
-            <th class="col-num">회차</th>
-            <th class="col-date">날짜</th>
-            <th class="col-class">반</th>
-            <th class="col-unit">단원 / 주제</th>
-            <th class="col-content">학습 내용</th>
-            <th class="col-hw">과제</th>
-            <th class="col-note">비고</th>
-            <th class="col-done">완료</th>
-            <th class="col-del"></th>
-          </tr>
+          <tr id="tableHeadRow"></tr>
         </thead>
         <tbody id="tableBody"></tbody>
       </table>
@@ -865,6 +875,7 @@
   const today = new Date();
   let currentMonth = new Date(today.getFullYear(), today.getMonth(), 1);
   let currentView = "table";
+  let combinedView = false;
 
   const el = {
     tabs: document.getElementById("subjectTabs"),
@@ -873,6 +884,8 @@
     semester: document.getElementById("semesterInput"),
     book: document.getElementById("bookInput"),
     tbody: document.getElementById("tableBody"),
+    tableHeadRow: document.getElementById("tableHeadRow"),
+    combinedToggleBtn: document.getElementById("combinedToggleBtn"),
     empty: document.getElementById("emptyState"),
     statTotal: document.getElementById("statTotal"),
     statDone: document.getElementById("statDone"),
@@ -991,7 +1004,7 @@
   }
 
   function renderStats() {
-    const rows = activeSubject().rows;
+    const rows = combinedView ? state.subjects.flatMap(s => s.rows) : activeSubject().rows;
     const total = rows.length;
     const done = rows.filter(r => r.done).length;
     const percent = total ? Math.round((done / total) * 100) : 0;
@@ -1001,14 +1014,59 @@
     el.fill.style.width = percent + "%";
   }
 
+  function renderTableHead() {
+    el.tableHeadRow.innerHTML =
+      (combinedView ? '<th class="col-subject">과목</th>' : "") +
+      '<th class="col-num">회차</th>' +
+      '<th class="col-date">날짜</th>' +
+      '<th class="col-class">반</th>' +
+      '<th class="col-unit">단원 / 주제</th>' +
+      '<th class="col-content">학습 내용</th>' +
+      '<th class="col-hw">과제</th>' +
+      '<th class="col-note">비고</th>' +
+      '<th class="col-done">완료</th>' +
+      '<th class="col-del"></th>';
+  }
+
+  function bindRowInputs(tr, row, subject, idx) {
+    const [dateInput, classInput, unitInput, contentInput, hwInput, noteInput] = tr.querySelectorAll('input[type="text"], input[type="date"]');
+    dateInput.addEventListener("input", () => { row.date = dateInput.value; scheduleSave(); });
+    classInput.addEventListener("input", () => { row.classGroup = classInput.value; scheduleSave(); });
+    unitInput.addEventListener("input", () => { row.unit = unitInput.value; scheduleSave(); });
+    contentInput.addEventListener("input", () => { row.content = contentInput.value; scheduleSave(); });
+    hwInput.addEventListener("input", () => { row.hw = hwInput.value; scheduleSave(); });
+    noteInput.addEventListener("input", () => { row.note = noteInput.value; scheduleSave(); });
+
+    const checkbox = tr.querySelector(".check");
+    checkbox.addEventListener("change", () => {
+      row.done = checkbox.checked;
+      tr.classList.toggle("is-done", row.done);
+      renderStats();
+      scheduleSave();
+    });
+
+    tr.querySelector(".row-del").addEventListener("click", () => {
+      subject.rows.splice(idx, 1);
+      renderRows();
+      renderStats();
+      scheduleSave();
+    });
+  }
+
   function renderRows() {
-    const rows = activeSubject().rows;
+    renderTableHead();
+    if (combinedView) return renderCombinedRows();
+
+    const subject = activeSubject();
+    const rows = subject.rows;
     el.tbody.innerHTML = "";
     el.empty.hidden = rows.length > 0;
 
     rows.forEach((row, idx) => {
       const tr = document.createElement("tr");
       if (row.done) tr.classList.add("is-done");
+      tr.dataset.subjectId = subject.id;
+      tr.dataset.rowIdx = String(idx);
 
       tr.innerHTML = `
         <td class="col-num">${idx + 1}</td>
@@ -1022,31 +1080,60 @@
         <td class="col-del"><button type="button" class="row-del" title="이 회차 삭제" aria-label="${idx + 1}회차 삭제">✕</button></td>
       `;
 
-      const [dateInput, classInput, unitInput, contentInput, hwInput, noteInput] = tr.querySelectorAll('input[type="text"], input[type="date"]');
-      dateInput.addEventListener("input", () => { row.date = dateInput.value; scheduleSave(); });
-      classInput.addEventListener("input", () => { row.classGroup = classInput.value; scheduleSave(); });
-      unitInput.addEventListener("input", () => { row.unit = unitInput.value; scheduleSave(); });
-      contentInput.addEventListener("input", () => { row.content = contentInput.value; scheduleSave(); });
-      hwInput.addEventListener("input", () => { row.hw = hwInput.value; scheduleSave(); });
-      noteInput.addEventListener("input", () => { row.note = noteInput.value; scheduleSave(); });
-
-      const checkbox = tr.querySelector(".check");
-      checkbox.addEventListener("change", () => {
-        row.done = checkbox.checked;
-        tr.classList.toggle("is-done", row.done);
-        renderStats();
-        scheduleSave();
-      });
-
-      tr.querySelector(".row-del").addEventListener("click", () => {
-        rows.splice(idx, 1);
-        renderRows();
-        renderStats();
-        scheduleSave();
-      });
-
+      bindRowInputs(tr, row, subject, idx);
       el.tbody.appendChild(tr);
     });
+  }
+
+  function renderCombinedRows() {
+    el.tbody.innerHTML = "";
+    const entries = [];
+    state.subjects.forEach(subject => {
+      subject.rows.forEach((row, idx) => entries.push({ subject, row, idx }));
+    });
+    entries.sort((a, b) => {
+      if (a.row.date && b.row.date) return a.row.date < b.row.date ? -1 : a.row.date > b.row.date ? 1 : 0;
+      if (a.row.date) return -1;
+      if (b.row.date) return 1;
+      return 0;
+    });
+    el.empty.hidden = entries.length > 0;
+
+    entries.forEach(({ subject, row, idx }) => {
+      const tr = document.createElement("tr");
+      if (row.done) tr.classList.add("is-done");
+      tr.dataset.subjectId = subject.id;
+      tr.dataset.rowIdx = String(idx);
+
+      const subjectName = subject.name || "(제목 없는 과목)";
+      tr.innerHTML = `
+        <td class="col-subject"><button type="button" class="subject-link">${escapeAttr(subjectName)}</button></td>
+        <td class="col-num">${idx + 1}</td>
+        <td class="col-date"><input type="date" value="${row.date}" aria-label="${subjectName} ${idx + 1}회차 날짜" /></td>
+        <td class="col-class"><input type="text" value="${escapeAttr(row.classGroup)}" placeholder="반" aria-label="${subjectName} ${idx + 1}회차 반" /></td>
+        <td class="col-unit"><input type="text" value="${escapeAttr(row.unit)}" placeholder="단원명" aria-label="${subjectName} ${idx + 1}회차 단원" /></td>
+        <td class="col-content"><input type="text" value="${escapeAttr(row.content)}" placeholder="학습 내용" aria-label="${subjectName} ${idx + 1}회차 학습내용" /></td>
+        <td class="col-hw"><input type="text" value="${escapeAttr(row.hw)}" placeholder="과제" aria-label="${subjectName} ${idx + 1}회차 과제" /></td>
+        <td class="col-note"><input type="text" value="${escapeAttr(row.note)}" placeholder="비고" aria-label="${subjectName} ${idx + 1}회차 비고" /></td>
+        <td class="col-done"><input type="checkbox" class="check" ${row.done ? "checked" : ""} aria-label="${subjectName} ${idx + 1}회차 완료 여부" /></td>
+        <td class="col-del"><button type="button" class="row-del" title="이 회차 삭제" aria-label="${subjectName} ${idx + 1}회차 삭제">✕</button></td>
+      `;
+
+      tr.querySelector(".subject-link").addEventListener("click", () => {
+        state.activeId = subject.id;
+        combinedView = false;
+        updateCombinedToggle();
+        renderAll();
+      });
+
+      bindRowInputs(tr, row, subject, idx);
+      el.tbody.appendChild(tr);
+    });
+  }
+
+  function updateCombinedToggle() {
+    el.combinedToggleBtn.setAttribute("aria-pressed", String(combinedView));
+    el.combinedToggleBtn.textContent = combinedView ? "과목별로 보기" : "전체 과목 통합 보기";
   }
 
   function addRow(dateStr) {
@@ -1059,9 +1146,10 @@
     return newIdx;
   }
 
-  function focusRowInTable(idx, focusUnit) {
+  function focusRowInTable(subjectId, idx, focusUnit) {
     switchView("table");
-    const tr = el.tbody.children[idx];
+    renderRows();
+    const tr = el.tbody.querySelector(`tr[data-subject-id="${subjectId}"][data-row-idx="${idx}"]`);
     if (!tr) return;
     tr.scrollIntoView({ block: "center", behavior: "smooth" });
     tr.classList.remove("row-flash");
@@ -1088,6 +1176,7 @@
     el.viewTimetableBtn.setAttribute("aria-pressed", String(isTimetable));
     el.addRowBtn.hidden = isTimetable;
     el.resetBtn.hidden = isTimetable;
+    el.combinedToggleBtn.hidden = !isTable;
     el.importExcelBtn.hidden = !isTimetable;
     el.addPeriodBtn.hidden = !isTimetable;
     el.resetTimetableBtn.hidden = !isTimetable;
@@ -1135,7 +1224,7 @@
       addBtn.setAttribute("aria-label", `${dateStr} 회차 추가`);
       addBtn.addEventListener("click", () => {
         const idx = addRow(dateStr);
-        focusRowInTable(idx, true);
+        focusRowInTable(activeSubject().id, idx, true);
       });
       numRow.appendChild(addBtn);
       cell.appendChild(numRow);
@@ -1151,7 +1240,7 @@
           const title = row.unit || row.content || "(제목 없음)";
           chip.textContent = row.classGroup ? `${row.classGroup} · ${title}` : title;
           chip.title = chip.textContent;
-          chip.addEventListener("click", () => focusRowInTable(idx, false));
+          chip.addEventListener("click", () => focusRowInTable(activeSubject().id, idx, false));
           list.appendChild(chip);
         });
         cell.appendChild(list);
@@ -1258,7 +1347,7 @@
               const idx = addRow(todayStr);
               if (cellData.classGroup) activeSubject().rows[idx].classGroup = cellData.classGroup;
               renderAll();
-              focusRowInTable(idx, true);
+              focusRowInTable(select.value, idx, true);
               scheduleSave();
             });
             topRow.appendChild(jump);
@@ -1505,13 +1594,19 @@
   });
 
   el.addRowBtn.addEventListener("click", () => {
+    const subject = activeSubject();
     const idx = addRow();
     if (currentView === "table") {
-      const inputs = el.tbody.children[idx].querySelectorAll("input");
-      if (inputs.length) inputs[1].focus();
+      focusRowInTable(subject.id, idx, true);
     } else {
       renderCalendar();
     }
+  });
+  el.combinedToggleBtn.addEventListener("click", () => {
+    combinedView = !combinedView;
+    updateCombinedToggle();
+    renderRows();
+    renderStats();
   });
   document.getElementById("printBtn").addEventListener("click", () => window.print());
 
