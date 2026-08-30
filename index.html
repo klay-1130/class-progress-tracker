@@ -15,6 +15,14 @@
     --radius: 10px;
     --font-ui: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", sans-serif;
     --font-mono: ui-monospace, "SF Mono", "Cascadia Mono", "Roboto Mono", "Consolas", monospace;
+    --series-1: #2a78d6;
+    --series-2: #eb6834;
+    --series-3: #1baf7a;
+    --series-4: #eda100;
+    --series-5: #e87ba4;
+    --series-6: #008300;
+    --series-7: #4a3aa7;
+    --series-8: #e34948;
   }
 
   @media (prefers-color-scheme: dark) {
@@ -30,6 +38,14 @@
       --accent-soft: #2b3b31;
       --danger: #de8770;
       --danger-soft: #3a241f;
+      --series-1: #3987e5;
+      --series-2: #d95926;
+      --series-3: #199e70;
+      --series-4: #c98500;
+      --series-5: #d55181;
+      --series-6: #008300;
+      --series-7: #9085e9;
+      --series-8: #e66767;
     }
   }
   :root[data-theme="dark"] {
@@ -44,6 +60,14 @@
     --accent-soft: #2b3b31;
     --danger: #de8770;
     --danger-soft: #3a241f;
+    --series-1: #3987e5;
+    --series-2: #d95926;
+    --series-3: #199e70;
+    --series-4: #c98500;
+    --series-5: #d55181;
+    --series-6: #008300;
+    --series-7: #9085e9;
+    --series-8: #e66767;
   }
   :root[data-theme="light"] {
     --bg: #edece4;
@@ -57,6 +81,14 @@
     --accent-soft: #dce8df;
     --danger: #a8432e;
     --danger-soft: #f1dfd8;
+    --series-1: #2a78d6;
+    --series-2: #eb6834;
+    --series-3: #1baf7a;
+    --series-4: #eda100;
+    --series-5: #e87ba4;
+    --series-6: #008300;
+    --series-7: #4a3aa7;
+    --series-8: #e34948;
   }
 
   * { box-sizing: border-box; }
@@ -607,7 +639,10 @@
   .tt-cell-inner { display: flex; flex-direction: column; gap: 2px; }
   .tt-cell-top { display: flex; align-items: center; gap: 2px; }
 
-  .tt-cell.is-filled { background: var(--accent-soft); }
+  .tt-cell.is-filled {
+    background: color-mix(in oklab, var(--cell-color, var(--accent)) 22%, var(--surface));
+    border-left: 3px solid var(--cell-color, var(--accent));
+  }
 
   .tt-select {
     flex: 1;
@@ -832,7 +867,8 @@
 
   function freshState() {
     const subject = makeSubject("과목 1");
-    return { subjects: [subject], activeId: subject.id, timetable: defaultTimetable() };
+    subject.colorIndex = 0;
+    return { subjects: [subject], activeId: subject.id, timetable: defaultTimetable(), nextColorIndex: 1 };
   }
 
   function migrateLegacy() {
@@ -848,8 +884,9 @@
         semester: old.meta.semester || "",
         book: old.meta.book || "",
         rows: old.rows.map(r => makeRow({ ...r, classGroup: old.meta.classGroup || "" })),
+        colorIndex: 0,
       };
-      return { subjects: [subject], activeId: subject.id, timetable: defaultTimetable() };
+      return { subjects: [subject], activeId: subject.id, timetable: defaultTimetable(), nextColorIndex: 1 };
     } catch (e) {
       return null;
     }
@@ -867,7 +904,24 @@
     if (!result) result = migrateLegacy();
     if (!result) result = freshState();
     if (!result.timetable) result.timetable = defaultTimetable();
+    if (typeof result.nextColorIndex !== "number") result.nextColorIndex = 0;
+    result.subjects.forEach(s => {
+      if (typeof s.colorIndex !== "number") {
+        s.colorIndex = result.nextColorIndex;
+        result.nextColorIndex = (result.nextColorIndex + 1) % 8;
+      }
+    });
     return result;
+  }
+
+  function nextColor() {
+    const i = state.nextColorIndex;
+    state.nextColorIndex = (state.nextColorIndex + 1) % 8;
+    return i;
+  }
+
+  function subjectColorVar(subject) {
+    return `var(--series-${(((subject && subject.colorIndex) || 0) % 8) + 1})`;
   }
 
   let state = loadState();
@@ -985,6 +1039,7 @@
     addTab.textContent = "+ 과목 추가";
     addTab.addEventListener("click", () => {
       const subject = makeSubject(`과목 ${state.subjects.length + 1}`);
+      subject.colorIndex = nextColor();
       state.subjects.push(subject);
       state.activeId = subject.id;
       renderAll();
@@ -1331,8 +1386,14 @@
         });
 
         function syncFilled() {
-          const filled = !!select.value && state.subjects.some(s => s.id === select.value);
+          const matchedSubject = state.subjects.find(s => s.id === select.value);
+          const filled = !!select.value && !!matchedSubject;
           td.classList.toggle("is-filled", filled);
+          if (filled) {
+            td.style.setProperty("--cell-color", subjectColorVar(matchedSubject));
+          } else {
+            td.style.removeProperty("--cell-color");
+          }
           const existingJump = topRow.querySelector(".tt-jump");
           if (existingJump) existingJump.remove();
           if (filled) {
@@ -1569,6 +1630,7 @@
         let subject = existingByName.get(text);
         if (!subject && createMissing) {
           subject = makeSubject(text);
+          subject.colorIndex = nextColor();
           state.subjects.push(subject);
           existingByName.set(text, subject);
         }
