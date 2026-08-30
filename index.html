@@ -714,6 +714,7 @@
       <button id="addPeriodBtn" type="button" hidden>+ 교시 추가</button>
       <button id="printBtn" type="button">인쇄</button>
       <button id="resetBtn" class="ghost-danger" type="button">이 과목 초기화</button>
+      <button id="resetTimetableBtn" class="ghost-danger" type="button" hidden>시간표 초기화</button>
     </div>
   </div>
 
@@ -875,6 +876,7 @@
     todayBtn: document.getElementById("todayBtn"),
     addRowBtn: document.getElementById("addRowBtn"),
     resetBtn: document.getElementById("resetBtn"),
+    resetTimetableBtn: document.getElementById("resetTimetableBtn"),
     importExcelBtn: document.getElementById("importExcelBtn"),
     excelFileInput: document.getElementById("excelFileInput"),
     addPeriodBtn: document.getElementById("addPeriodBtn"),
@@ -1069,6 +1071,7 @@
     el.resetBtn.hidden = isTimetable;
     el.importExcelBtn.hidden = !isTimetable;
     el.addPeriodBtn.hidden = !isTimetable;
+    el.resetTimetableBtn.hidden = !isTimetable;
     if (isCalendar) renderCalendar();
     if (isTimetable) renderTimetable();
   }
@@ -1526,6 +1529,14 @@
     renderAll();
     scheduleSave();
     alert(`시간표를 불러왔습니다. (${detected.days.length}개 요일 × ${detected.slots.length}개 교시)`);
+  });
+
+  el.resetTimetableBtn.addEventListener("click", () => {
+    if (confirm("시간표를 초기화할까요? 요일·교시 구성과 배정된 과목이 모두 지워집니다. 이 작업은 되돌릴 수 없습니다.")) {
+      state.timetable = defaultTimetable();
+      renderTimetable();
+      scheduleSave();
+    }
   });
 
   el.resetBtn.addEventListener("click", () => {
