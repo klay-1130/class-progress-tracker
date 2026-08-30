@@ -567,12 +567,87 @@
     color: var(--ink-soft);
   }
 
+  /* ---- Timetable ---- */
+  .timetable-card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+
+  .tt-hint {
+    padding: 14px 20px;
+    font-size: 12.5px;
+    color: var(--ink-soft);
+    border-bottom: 1px solid var(--line);
+    text-align: center;
+  }
+
+  .tt-table { min-width: 640px; }
+
+  .tt-cell-inner { display: flex; align-items: center; gap: 2px; }
+
+  .tt-cell.is-filled { background: var(--accent-soft); }
+
+  .tt-select {
+    flex: 1;
+    min-width: 0;
+    font-family: var(--font-ui);
+    font-size: 13.5px;
+    color: var(--ink);
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 5px;
+    padding: 7px 8px;
+    cursor: pointer;
+  }
+  .tt-select:hover { border-color: var(--line); }
+  .tt-select:focus-visible {
+    outline: none;
+    border-color: var(--accent);
+    background: var(--surface);
+  }
+
+  .tt-jump {
+    flex: none;
+    border: none;
+    background: transparent;
+    color: var(--accent-strong);
+    font-weight: 700;
+    font-size: 13px;
+    width: 22px;
+    height: 22px;
+    border-radius: 5px;
+    padding: 0;
+    cursor: pointer;
+  }
+  .tt-jump:hover { background: var(--accent-soft); }
+
+  .tt-period-label {
+    width: 100%;
+    font-family: var(--font-ui);
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--ink);
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 5px;
+    padding: 7px 6px;
+    text-align: center;
+  }
+  .tt-period-label:hover { border-color: var(--line); }
+  .tt-period-label:focus-visible {
+    outline: none;
+    border-color: var(--accent);
+    background: var(--surface);
+  }
+
   /* ---- Print ---- */
   @media print {
     body { background: #fff; padding: 0; }
     .toolbar, .row-del, .col-del, .footer-row, .day-add, .unscheduled-note,
-    .month-nav button, .subject-tabs { display: none !important; }
-    .header-card, .progress-card, .table-card, .calendar-card {
+    .month-nav button, .subject-tabs, .tt-jump, .tt-hint { display: none !important; }
+    .header-card, .progress-card, .table-card, .calendar-card, .timetable-card {
       border: none;
       box-shadow: none;
     }
@@ -580,13 +655,14 @@
     tbody tr.is-done { background: #f0f0f0 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     .day-cell.is-today .day-num { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     .chip.is-done { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .tt-cell.is-filled { background: #f0f0f0 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   }
 </style>
 
 <div class="page">
   <nav class="subject-tabs" id="subjectTabs" aria-label="과목 목록"></nav>
 
-  <header class="header-card">
+  <header class="header-card" id="headerCard">
     <div class="eyebrow">CLASS PROGRESS LOG</div>
     <input class="subject-input" id="subjectInput" placeholder="과목명을 입력하세요 (예: 중2 수학)" aria-label="과목명" />
     <div class="meta-row">
@@ -605,7 +681,7 @@
     </div>
   </header>
 
-  <section class="progress-card" aria-label="진도 현황 요약">
+  <section class="progress-card" id="progressCard" aria-label="진도 현황 요약">
     <div class="progress-stat">
       <span class="num" id="statTotal">0</span>
       <span class="label">총 회차</span>
@@ -629,9 +705,13 @@
     <div class="view-toggle" role="group" aria-label="보기 방식">
       <button id="viewTableBtn" type="button" aria-pressed="true">표 보기</button>
       <button id="viewCalendarBtn" type="button" aria-pressed="false">달력 보기</button>
+      <button id="viewTimetableBtn" type="button" aria-pressed="false">시간표 보기</button>
     </div>
     <div class="toolbar-actions">
       <button id="addRowBtn" class="primary" type="button">+ 회차 추가</button>
+      <button id="importExcelBtn" class="primary" type="button" hidden>엑셀 불러오기</button>
+      <input type="file" id="excelFileInput" accept=".xlsx,.csv" hidden />
+      <button id="addPeriodBtn" type="button" hidden>+ 교시 추가</button>
       <button id="printBtn" type="button">인쇄</button>
       <button id="resetBtn" class="ghost-danger" type="button">이 과목 초기화</button>
     </div>
@@ -649,6 +729,18 @@
     </div>
     <div class="calendar-grid" id="calendarGrid"></div>
     <div class="unscheduled-note" id="unscheduledNote" hidden></div>
+  </div>
+
+  <div class="timetable-card" id="timetableCard" hidden>
+    <div class="tt-hint">셀에서 과목을 선택해 시간표를 채우세요. 엑셀(xlsx/csv)을 불러오면 첫 행(요일)·첫 열(교시) 구조를 자동으로 인식하고, 표에 없는 과목명은 새 탭으로 추가할 수 있어요.</div>
+    <div class="table-scroll">
+      <table class="tt-table">
+        <thead>
+          <tr id="timetableHead"></tr>
+        </thead>
+        <tbody id="timetableBody"></tbody>
+      </table>
+    </div>
   </div>
 
   <div class="table-card" id="tableCard">
@@ -701,9 +793,16 @@
     };
   }
 
+  function defaultTimetable() {
+    return {
+      days: ["월", "화", "수", "목", "금"],
+      periods: Array.from({ length: 7 }, (_, i) => ({ label: `${i + 1}교시`, cells: {} })),
+    };
+  }
+
   function freshState() {
     const subject = makeSubject("과목 1");
-    return { subjects: [subject], activeId: subject.id };
+    return { subjects: [subject], activeId: subject.id, timetable: defaultTimetable() };
   }
 
   function migrateLegacy() {
@@ -720,23 +819,25 @@
         book: old.meta.book || "",
         rows: old.rows.map(r => makeRow({ ...r, classGroup: old.meta.classGroup || "" })),
       };
-      return { subjects: [subject], activeId: subject.id };
+      return { subjects: [subject], activeId: subject.id, timetable: defaultTimetable() };
     } catch (e) {
       return null;
     }
   }
 
   function loadState() {
+    let result = null;
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) {
         const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed.subjects) && parsed.subjects.length && parsed.activeId) return parsed;
+        if (Array.isArray(parsed.subjects) && parsed.subjects.length && parsed.activeId) result = parsed;
       }
     } catch (e) { /* fall through */ }
-    const migrated = migrateLegacy();
-    if (migrated) return migrated;
-    return freshState();
+    if (!result) result = migrateLegacy();
+    if (!result) result = freshState();
+    if (!result.timetable) result.timetable = defaultTimetable();
+    return result;
   }
 
   let state = loadState();
@@ -758,16 +859,27 @@
     statPercent: document.getElementById("statPercent"),
     fill: document.getElementById("progressFill"),
     saveStatus: document.getElementById("saveStatus"),
+    headerCard: document.getElementById("headerCard"),
+    progressCard: document.getElementById("progressCard"),
     tableCard: document.getElementById("tableCard"),
     calendarCard: document.getElementById("calendarCard"),
+    timetableCard: document.getElementById("timetableCard"),
     viewTableBtn: document.getElementById("viewTableBtn"),
     viewCalendarBtn: document.getElementById("viewCalendarBtn"),
+    viewTimetableBtn: document.getElementById("viewTimetableBtn"),
     monthLabel: document.getElementById("monthLabel"),
     calendarGrid: document.getElementById("calendarGrid"),
     unscheduledNote: document.getElementById("unscheduledNote"),
     prevMonthBtn: document.getElementById("prevMonthBtn"),
     nextMonthBtn: document.getElementById("nextMonthBtn"),
     todayBtn: document.getElementById("todayBtn"),
+    addRowBtn: document.getElementById("addRowBtn"),
+    resetBtn: document.getElementById("resetBtn"),
+    importExcelBtn: document.getElementById("importExcelBtn"),
+    excelFileInput: document.getElementById("excelFileInput"),
+    addPeriodBtn: document.getElementById("addPeriodBtn"),
+    timetableHead: document.getElementById("timetableHead"),
+    timetableBody: document.getElementById("timetableBody"),
   };
 
   function activeSubject() {
@@ -943,11 +1055,22 @@
   function switchView(view) {
     currentView = view;
     const isTable = view === "table";
+    const isCalendar = view === "calendar";
+    const isTimetable = view === "timetable";
     el.tableCard.hidden = !isTable;
-    el.calendarCard.hidden = isTable;
+    el.calendarCard.hidden = !isCalendar;
+    el.timetableCard.hidden = !isTimetable;
+    el.headerCard.hidden = isTimetable;
+    el.progressCard.hidden = isTimetable;
     el.viewTableBtn.setAttribute("aria-pressed", String(isTable));
-    el.viewCalendarBtn.setAttribute("aria-pressed", String(!isTable));
-    if (!isTable) renderCalendar();
+    el.viewCalendarBtn.setAttribute("aria-pressed", String(isCalendar));
+    el.viewTimetableBtn.setAttribute("aria-pressed", String(isTimetable));
+    el.addRowBtn.hidden = isTimetable;
+    el.resetBtn.hidden = isTimetable;
+    el.importExcelBtn.hidden = !isTimetable;
+    el.addPeriodBtn.hidden = !isTimetable;
+    if (isCalendar) renderCalendar();
+    if (isTimetable) renderTimetable();
   }
 
   function pad2(n) { return String(n).padStart(2, "0"); }
@@ -1029,12 +1152,293 @@
     }
   }
 
+  function renderTimetable() {
+    const tt = state.timetable;
+
+    el.timetableHead.innerHTML = '<th class="col-num">교시</th>' +
+      tt.days.map(d => `<th>${d}</th>`).join("") +
+      '<th class="col-del"></th>';
+
+    el.timetableBody.innerHTML = "";
+    tt.periods.forEach((period, pIdx) => {
+      const tr = document.createElement("tr");
+
+      const labelTd = document.createElement("td");
+      labelTd.className = "col-num";
+      const labelInput = document.createElement("input");
+      labelInput.type = "text";
+      labelInput.value = period.label;
+      labelInput.className = "tt-period-label";
+      labelInput.setAttribute("aria-label", `${pIdx + 1}번째 교시 이름`);
+      labelInput.addEventListener("input", () => { period.label = labelInput.value; scheduleSave(); });
+      labelTd.appendChild(labelInput);
+      tr.appendChild(labelTd);
+
+      tt.days.forEach(day => {
+        const td = document.createElement("td");
+        td.className = "tt-cell";
+
+        const inner = document.createElement("div");
+        inner.className = "tt-cell-inner";
+
+        const select = document.createElement("select");
+        select.className = "tt-select";
+        select.setAttribute("aria-label", `${period.label} ${day}요일 과목`);
+        const noneOpt = document.createElement("option");
+        noneOpt.value = "";
+        noneOpt.textContent = "−";
+        select.appendChild(noneOpt);
+        state.subjects.forEach(s => {
+          const opt = document.createElement("option");
+          opt.value = s.id;
+          opt.textContent = s.name || "(제목 없음)";
+          if (period.cells[day] === s.id) opt.selected = true;
+          select.appendChild(opt);
+        });
+        inner.appendChild(select);
+
+        function syncFilled() {
+          const filled = !!select.value && state.subjects.some(s => s.id === select.value);
+          td.classList.toggle("is-filled", filled);
+          const existingJump = inner.querySelector(".tt-jump");
+          if (existingJump) existingJump.remove();
+          if (filled) {
+            const jump = document.createElement("button");
+            jump.type = "button";
+            jump.className = "tt-jump";
+            jump.textContent = "→";
+            jump.title = "이 과목 진도표로 이동";
+            jump.addEventListener("click", () => {
+              state.activeId = select.value;
+              switchView("table");
+              renderAll();
+            });
+            inner.appendChild(jump);
+          }
+        }
+
+        select.addEventListener("change", () => {
+          period.cells[day] = select.value;
+          syncFilled();
+          scheduleSave();
+        });
+
+        syncFilled();
+        td.appendChild(inner);
+        tr.appendChild(td);
+      });
+
+      const delTd = document.createElement("td");
+      delTd.className = "col-del";
+      const delBtn = document.createElement("button");
+      delBtn.type = "button";
+      delBtn.className = "row-del";
+      delBtn.title = "이 교시 삭제";
+      delBtn.textContent = "✕";
+      delBtn.addEventListener("click", () => {
+        tt.periods.splice(pIdx, 1);
+        renderTimetable();
+        scheduleSave();
+      });
+      delTd.appendChild(delBtn);
+      tr.appendChild(delTd);
+
+      el.timetableBody.appendChild(tr);
+    });
+  }
+
   function renderAll() {
     renderTabs();
     fillHeaderInputs();
     renderRows();
     renderStats();
     if (currentView === "calendar") renderCalendar();
+    if (currentView === "timetable") renderTimetable();
+  }
+
+  /* ---- Excel / CSV import ---- */
+
+  function parseCSV(text) {
+    const rows = [];
+    let row = [], field = "", inQuotes = false;
+    for (let i = 0; i < text.length; i++) {
+      const c = text[i];
+      if (inQuotes) {
+        if (c === '"') {
+          if (text[i + 1] === '"') { field += '"'; i++; } else { inQuotes = false; }
+        } else field += c;
+      } else if (c === '"') {
+        inQuotes = true;
+      } else if (c === ",") {
+        row.push(field); field = "";
+      } else if (c === "\n") {
+        row.push(field); rows.push(row); row = []; field = "";
+      } else if (c === "\r") {
+        /* skip */
+      } else {
+        field += c;
+      }
+    }
+    if (field.length || row.length) { row.push(field); rows.push(row); }
+    return rows;
+  }
+
+  async function inflateRaw(bytes) {
+    const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream("deflate-raw"));
+    return new Uint8Array(await new Response(stream).arrayBuffer());
+  }
+
+  async function readZipEntries(buffer, wantPredicate) {
+    const bytes = new Uint8Array(buffer);
+    const view = new DataView(buffer);
+    const decoder = new TextDecoder("utf-8");
+    const result = {};
+    let offset = 0;
+    while (offset + 30 <= bytes.length) {
+      const sig = view.getUint32(offset, true);
+      if (sig !== 0x04034b50) break;
+      const method = view.getUint16(offset + 8, true);
+      const compSize = view.getUint32(offset + 18, true);
+      const fnLen = view.getUint16(offset + 26, true);
+      const efLen = view.getUint16(offset + 28, true);
+      const nameStart = offset + 30;
+      const fileName = decoder.decode(bytes.subarray(nameStart, nameStart + fnLen));
+      const dataStart = nameStart + fnLen + efLen;
+      const dataEnd = dataStart + compSize;
+      if (wantPredicate(fileName)) {
+        const raw = bytes.slice(dataStart, dataEnd);
+        if (method === 0) {
+          result[fileName] = decoder.decode(raw);
+        } else if (method === 8) {
+          result[fileName] = decoder.decode(await inflateRaw(raw));
+        }
+      }
+      offset = dataEnd;
+    }
+    return result;
+  }
+
+  function parseSharedStrings(xmlText) {
+    const doc = new DOMParser().parseFromString(xmlText, "application/xml");
+    return Array.from(doc.getElementsByTagName("si")).map(si =>
+      Array.from(si.getElementsByTagName("t")).map(t => t.textContent).join("")
+    );
+  }
+
+  function colLettersToIndex(letters) {
+    let n = 0;
+    for (let i = 0; i < letters.length; i++) n = n * 26 + (letters.charCodeAt(i) - 64);
+    return n - 1;
+  }
+
+  function parseSheetXml(xmlText, sharedStrings) {
+    const doc = new DOMParser().parseFromString(xmlText, "application/xml");
+    const rowEls = Array.from(doc.getElementsByTagName("row"));
+    const grid = [];
+    let maxCol = 0;
+    rowEls.forEach(rowEl => {
+      const rIdx = rowEl.hasAttribute("r") ? parseInt(rowEl.getAttribute("r"), 10) - 1 : grid.length;
+      if (!grid[rIdx]) grid[rIdx] = [];
+      Array.from(rowEl.getElementsByTagName("c")).forEach(c => {
+        const ref = c.getAttribute("r") || "";
+        const m = ref.match(/^([A-Z]+)/);
+        const colIdx = m ? colLettersToIndex(m[1]) : grid[rIdx].length;
+        const type = c.getAttribute("t");
+        let text = "";
+        if (type === "inlineStr") {
+          const isEl = c.getElementsByTagName("is")[0];
+          text = isEl ? Array.from(isEl.getElementsByTagName("t")).map(t => t.textContent).join("") : "";
+        } else {
+          const vEl = c.getElementsByTagName("v")[0];
+          const raw = vEl ? vEl.textContent : "";
+          text = type === "s" ? (sharedStrings[parseInt(raw, 10)] || "") : raw;
+        }
+        grid[rIdx][colIdx] = text;
+        if (colIdx > maxCol) maxCol = colIdx;
+      });
+    });
+    return grid.map(row => {
+      const dense = [];
+      for (let c = 0; c <= maxCol; c++) dense[c] = (row && row[c]) || "";
+      return dense;
+    });
+  }
+
+  async function parseXlsx(buffer) {
+    if (typeof DecompressionStream === "undefined") {
+      throw new Error("unsupported-browser");
+    }
+    const entries = await readZipEntries(
+      buffer,
+      name => /^xl\/worksheets\/sheet\d+\.xml$/.test(name) || name === "xl/sharedStrings.xml"
+    );
+    const sheetNames = Object.keys(entries)
+      .filter(n => /^xl\/worksheets\/sheet\d+\.xml$/.test(n))
+      .sort((a, b) => parseInt(a.match(/sheet(\d+)\.xml/)[1], 10) - parseInt(b.match(/sheet(\d+)\.xml/)[1], 10));
+    if (!sheetNames.length) throw new Error("no-worksheet");
+    const sharedStrings = entries["xl/sharedStrings.xml"] ? parseSharedStrings(entries["xl/sharedStrings.xml"]) : [];
+    return parseSheetXml(entries[sheetNames[0]], sharedStrings);
+  }
+
+  async function parseTimetableFile(file) {
+    const name = file.name.toLowerCase();
+    if (name.endsWith(".csv")) return parseCSV(await file.text());
+    if (name.endsWith(".xlsx")) return parseXlsx(await file.arrayBuffer());
+    throw new Error("unsupported-type");
+  }
+
+  function detectTimetable(grid) {
+    const dayNames = ["일", "월", "화", "수", "목", "금", "토"];
+    let headerRowIdx = -1, dayCols = [], best = 0;
+    for (let r = 0; r < Math.min(grid.length, 8); r++) {
+      const cols = [];
+      (grid[r] || []).forEach((cell, c) => {
+        const t = (cell || "").trim();
+        const day = dayNames.find(d => t.startsWith(d));
+        if (day && !cols.some(x => x.day === day)) cols.push({ day, c });
+      });
+      if (cols.length > best) { best = cols.length; headerRowIdx = r; dayCols = cols; }
+    }
+    if (headerRowIdx === -1 || best < 2) return null;
+    dayCols.sort((a, b) => a.c - b.c);
+
+    const slots = [];
+    for (let r = headerRowIdx + 1; r < grid.length; r++) {
+      const label = ((grid[r] || [])[0] || "").trim();
+      const values = {};
+      let any = false;
+      dayCols.forEach(({ day, c }) => {
+        const v = ((grid[r] || [])[c] || "").trim();
+        values[day] = v;
+        if (v) any = true;
+      });
+      if (!label && !any) continue;
+      const periodLabel = label ? (/^\d+$/.test(label) ? `${label}교시` : label) : `${slots.length + 1}교시`;
+      slots.push({ label: periodLabel, values });
+    }
+    if (!slots.length) return null;
+    return { days: dayCols.map(x => x.day), slots };
+  }
+
+  function applyDetectedTimetable(detected, createMissing) {
+    const existingByName = new Map(state.subjects.map(s => [s.name.trim(), s]));
+    const periods = detected.slots.map(slot => {
+      const cells = {};
+      detected.days.forEach(day => {
+        const text = (slot.values[day] || "").trim();
+        if (!text) { cells[day] = ""; return; }
+        let subject = existingByName.get(text);
+        if (!subject && createMissing) {
+          subject = makeSubject(text);
+          state.subjects.push(subject);
+          existingByName.set(text, subject);
+        }
+        cells[day] = subject ? subject.id : "";
+      });
+      return { label: slot.label, cells };
+    });
+    const order = ["일", "월", "화", "수", "목", "금", "토"];
+    state.timetable = { days: order.filter(d => detected.days.includes(d)), periods };
   }
 
   [
@@ -1050,7 +1454,7 @@
     });
   });
 
-  document.getElementById("addRowBtn").addEventListener("click", () => {
+  el.addRowBtn.addEventListener("click", () => {
     const idx = addRow();
     if (currentView === "table") {
       const inputs = el.tbody.children[idx].querySelectorAll("input");
@@ -1063,6 +1467,7 @@
 
   el.viewTableBtn.addEventListener("click", () => switchView("table"));
   el.viewCalendarBtn.addEventListener("click", () => switchView("calendar"));
+  el.viewTimetableBtn.addEventListener("click", () => switchView("timetable"));
   el.prevMonthBtn.addEventListener("click", () => {
     currentMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1);
     renderCalendar();
@@ -1075,7 +1480,55 @@
     currentMonth = new Date(today.getFullYear(), today.getMonth(), 1);
     renderCalendar();
   });
-  document.getElementById("resetBtn").addEventListener("click", () => {
+  el.addPeriodBtn.addEventListener("click", () => {
+    state.timetable.periods.push({ label: `${state.timetable.periods.length + 1}교시`, cells: {} });
+    renderTimetable();
+    scheduleSave();
+  });
+  el.importExcelBtn.addEventListener("click", () => el.excelFileInput.click());
+  el.excelFileInput.addEventListener("change", async (e) => {
+    const file = e.target.files[0];
+    e.target.value = "";
+    if (!file) return;
+
+    let grid;
+    try {
+      grid = await parseTimetableFile(file);
+    } catch (err) {
+      if (err && err.message === "unsupported-browser") {
+        alert("이 브라우저에서는 엑셀 파일 자동 불러오기를 지원하지 않아요. 최신 Chrome, Edge, Safari를 사용해보시거나 CSV 파일로 저장해서 다시 시도해주세요.");
+      } else {
+        alert("파일을 읽는 중 문제가 발생했습니다. xlsx 또는 csv 파일인지 확인하고 다시 시도해주세요.");
+      }
+      return;
+    }
+
+    const detected = detectTimetable(grid);
+    if (!detected) {
+      alert("시간표 형식을 인식하지 못했어요. 첫 행에 요일(월~금), 첫 열에 교시가 있는 표 형식인지 확인해주세요.");
+      return;
+    }
+
+    const hasExisting = state.timetable.periods.some(p => Object.values(p.cells).some(Boolean));
+    if (hasExisting && !confirm("기존 시간표 내용을 새로 불러온 내용으로 덮어씁니다. 계속할까요?")) return;
+
+    const existingNames = new Set(state.subjects.map(s => s.name.trim()));
+    const newNames = Array.from(new Set(
+      detected.slots.flatMap(s => Object.values(s.values)).map(v => v.trim()).filter(v => v && !existingNames.has(v))
+    ));
+    let createMissing = true;
+    if (newNames.length) {
+      createMissing = confirm(`다음 이름이 새 과목 탭으로 추가됩니다:\n${newNames.join(", ")}\n\n확인을 누르면 새 탭이 추가되고, 취소를 누르면 목록에 없는 과목명은 빈 칸으로 남습니다.`);
+    }
+
+    applyDetectedTimetable(detected, createMissing);
+    switchView("timetable");
+    renderAll();
+    scheduleSave();
+    alert(`시간표를 불러왔습니다. (${detected.days.length}개 요일 × ${detected.slots.length}개 교시)`);
+  });
+
+  el.resetBtn.addEventListener("click", () => {
     const subject = activeSubject();
     if (confirm(`"${subject.name || "이 과목"}"의 진도표 내용을 초기화할까요? 이 작업은 되돌릴 수 없습니다.`)) {
       subject.rows = [makeRow(), makeRow(), makeRow()];
