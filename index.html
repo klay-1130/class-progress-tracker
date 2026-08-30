@@ -585,7 +585,8 @@
 
   .tt-table { min-width: 640px; }
 
-  .tt-cell-inner { display: flex; align-items: center; gap: 2px; }
+  .tt-cell-inner { display: flex; flex-direction: column; gap: 2px; }
+  .tt-cell-top { display: flex; align-items: center; gap: 2px; }
 
   .tt-cell.is-filled { background: var(--accent-soft); }
 
@@ -606,6 +607,24 @@
     outline: none;
     border-color: var(--accent);
     background: var(--surface);
+  }
+
+  .tt-class-input {
+    width: 100%;
+    font-family: var(--font-ui);
+    font-size: 12px;
+    color: var(--ink-soft);
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 5px;
+    padding: 4px 8px;
+  }
+  .tt-class-input:hover { border-color: var(--line); }
+  .tt-class-input:focus-visible {
+    outline: none;
+    border-color: var(--accent);
+    background: var(--surface);
+    color: var(--ink);
   }
 
   .tt-jump {
@@ -733,7 +752,7 @@
   </div>
 
   <div class="timetable-card" id="timetableCard" hidden>
-    <div class="tt-hint">셀에서 과목을 선택해 시간표를 채우세요. 엑셀(xlsx/csv)을 불러오면 첫 행(요일)·첫 열(교시) 구조를 자동으로 인식하고, 표에 없는 과목명은 새 탭으로 추가할 수 있어요.</div>
+    <div class="tt-hint">셀에서 과목을 선택하고 반(학반)도 함께 입력해 시간표를 채우세요. 엑셀(xlsx/csv)을 불러오면 첫 행(요일)·첫 열(교시) 구조를 자동으로 인식하고, 표에 없는 과목명은 새 탭으로 추가할 수 있어요.</div>
     <div class="table-scroll">
       <table class="tt-table">
         <thead>
@@ -1155,6 +1174,11 @@
     }
   }
 
+  function normalizeCell(raw) {
+    if (raw && typeof raw === "object") return { subjectId: raw.subjectId || "", classGroup: raw.classGroup || "" };
+    return { subjectId: raw || "", classGroup: "" };
+  }
+
   function renderTimetable() {
     const tt = state.timetable;
 
@@ -1181,8 +1205,14 @@
         const td = document.createElement("td");
         td.className = "tt-cell";
 
+        const cellData = normalizeCell(period.cells[day]);
+        period.cells[day] = cellData;
+
         const inner = document.createElement("div");
         inner.className = "tt-cell-inner";
+
+        const topRow = document.createElement("div");
+        topRow.className = "tt-cell-top";
 
         const select = document.createElement("select");
         select.className = "tt-select";
@@ -1195,15 +1225,26 @@
           const opt = document.createElement("option");
           opt.value = s.id;
           opt.textContent = s.name || "(제목 없음)";
-          if (period.cells[day] === s.id) opt.selected = true;
+          if (cellData.subjectId === s.id) opt.selected = true;
           select.appendChild(opt);
         });
-        inner.appendChild(select);
+        topRow.appendChild(select);
+
+        const classInput = document.createElement("input");
+        classInput.type = "text";
+        classInput.className = "tt-class-input";
+        classInput.placeholder = "반";
+        classInput.value = cellData.classGroup;
+        classInput.setAttribute("aria-label", `${period.label} ${day}요일 반`);
+        classInput.addEventListener("input", () => {
+          cellData.classGroup = classInput.value;
+          scheduleSave();
+        });
 
         function syncFilled() {
           const filled = !!select.value && state.subjects.some(s => s.id === select.value);
           td.classList.toggle("is-filled", filled);
-          const existingJump = inner.querySelector(".tt-jump");
+          const existingJump = topRow.querySelector(".tt-jump");
           if (existingJump) existingJump.remove();
           if (filled) {
             const jump = document.createElement("button");
@@ -1216,17 +1257,19 @@
               switchView("table");
               renderAll();
             });
-            inner.appendChild(jump);
+            topRow.appendChild(jump);
           }
         }
 
         select.addEventListener("change", () => {
-          period.cells[day] = select.value;
+          cellData.subjectId = select.value;
           syncFilled();
           scheduleSave();
         });
 
         syncFilled();
+        inner.appendChild(topRow);
+        inner.appendChild(classInput);
         td.appendChild(inner);
         tr.appendChild(td);
       });
@@ -1429,14 +1472,14 @@
       const cells = {};
       detected.days.forEach(day => {
         const text = (slot.values[day] || "").trim();
-        if (!text) { cells[day] = ""; return; }
+        if (!text) { cells[day] = { subjectId: "", classGroup: "" }; return; }
         let subject = existingByName.get(text);
         if (!subject && createMissing) {
           subject = makeSubject(text);
           state.subjects.push(subject);
           existingByName.set(text, subject);
         }
-        cells[day] = subject ? subject.id : "";
+        cells[day] = { subjectId: subject ? subject.id : "", classGroup: "" };
       });
       return { label: slot.label, cells };
     });
@@ -1512,7 +1555,7 @@
       return;
     }
 
-    const hasExisting = state.timetable.periods.some(p => Object.values(p.cells).some(Boolean));
+    const hasExisting = state.timetable.periods.some(p => Object.values(p.cells).some(c => normalizeCell(c).subjectId));
     if (hasExisting && !confirm("기존 시간표 내용을 새로 불러온 내용으로 덮어씁니다. 계속할까요?")) return;
 
     const existingNames = new Set(state.subjects.map(s => s.name.trim()));
