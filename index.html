@@ -598,7 +598,8 @@
     cursor: pointer;
   }
 
-  .col-del { width: 40px; text-align: center; }
+  .col-del { text-align: center; white-space: nowrap; }
+  .row-actions { display: inline-flex; align-items: center; gap: 2px; }
   .row-del {
     border: none;
     background: transparent;
@@ -608,6 +609,18 @@
     border-radius: 5px;
   }
   .row-del:hover { color: var(--danger); background: var(--danger-soft); }
+
+  .row-move {
+    border: none;
+    background: transparent;
+    color: var(--ink-soft);
+    font-size: 11px;
+    padding: 4px 6px;
+    border-radius: 5px;
+    line-height: 1;
+  }
+  .row-move:hover:not(:disabled) { background: var(--surface-alt); color: var(--ink); }
+  .row-move:disabled { opacity: 0.25; cursor: default; }
 
   .empty-state {
     padding: 40px 20px;
@@ -1150,10 +1163,34 @@
         <td class="col-hw"><input type="text" value="${escapeAttr(row.hw)}" placeholder="과제" aria-label="${idx + 1}회차 과제" /></td>
         <td class="col-note"><input type="text" value="${escapeAttr(row.note)}" placeholder="비고" aria-label="${idx + 1}회차 비고" /></td>
         <td class="col-done"><input type="checkbox" class="check" ${row.done ? "checked" : ""} aria-label="${idx + 1}회차 완료 여부" /></td>
-        <td class="col-del"><button type="button" class="row-del" title="이 회차 삭제" aria-label="${idx + 1}회차 삭제">✕</button></td>
+        <td class="col-del">
+          <div class="row-actions">
+            <button type="button" class="row-move" data-dir="up" title="위로 이동" aria-label="${idx + 1}회차 위로 이동">▲</button>
+            <button type="button" class="row-move" data-dir="down" title="아래로 이동" aria-label="${idx + 1}회차 아래로 이동">▼</button>
+            <button type="button" class="row-del" title="이 회차 삭제" aria-label="${idx + 1}회차 삭제">✕</button>
+          </div>
+        </td>
       `;
 
       bindRowInputs(tr, row, subject, idx);
+
+      const upBtn = tr.querySelector('.row-move[data-dir="up"]');
+      const downBtn = tr.querySelector('.row-move[data-dir="down"]');
+      upBtn.disabled = idx === 0;
+      downBtn.disabled = idx === rows.length - 1;
+      upBtn.addEventListener("click", () => {
+        if (idx === 0) return;
+        [rows[idx - 1], rows[idx]] = [rows[idx], rows[idx - 1]];
+        renderRows();
+        scheduleSave();
+      });
+      downBtn.addEventListener("click", () => {
+        if (idx === rows.length - 1) return;
+        [rows[idx], rows[idx + 1]] = [rows[idx + 1], rows[idx]];
+        renderRows();
+        scheduleSave();
+      });
+
       el.tbody.appendChild(tr);
     });
   }
